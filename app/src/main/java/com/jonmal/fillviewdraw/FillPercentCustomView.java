@@ -1,6 +1,7 @@
 package com.jonmal.fillviewdraw;
 
 import android.content.Context;
+import android.content.res.TypedArray;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
@@ -10,6 +11,16 @@ import android.util.AttributeSet;
 import android.view.View;
 
 public class FillPercentCustomView extends View {
+
+
+    //=================================================
+    //                  Constants
+    //=================================================
+
+    private static final int DEFAULT_PERCENT_TO_FILL = 50;
+    private static final String DEFAULT_FILL_COLOR = "#CD5C5C";
+
+    private static final int ON_DRAW_DELAY_IN_MILLIS = 50; // 0.05 sec
 
     //=================================================
     //                  Fields
@@ -23,23 +34,24 @@ public class FillPercentCustomView extends View {
     private int mRight;
     private int mTop;
 
+    //
+    private float mPercentToFill;
+    private String mFillColor;
+    private int mMaxHeight;
+    private int mOnDrawIntervalPX;
+
     //=================================================
     //                  Constructor
     //=================================================
 
-    public FillPercentCustomView(Context context) {
-        super(context);
-        init();
-    }
-
     public FillPercentCustomView(Context context, AttributeSet attrs) {
         super(context, attrs);
-        init();
+        init(attrs);
     }
 
     public FillPercentCustomView(Context context, AttributeSet attrs, int defStyleAttr) {
         super(context, attrs, defStyleAttr);
-        init();
+        init(attrs);
     }
 
     //=================================================
@@ -50,16 +62,24 @@ public class FillPercentCustomView extends View {
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        mRect = new Rect(0, mTop, mRight, 100);
+        mRect = new Rect(0, mTop, mRight, getHeight());
+
+        mOnDrawIntervalPX = getHeight() / 100;
+
         // fill
         mPaint.setStyle(Paint.Style.FILL);
-        mPaint.setColor(Color.MAGENTA);
+
+        if (mFillColor != null) {
+
+            mPaint.setColor(Color.parseColor(mFillColor));
+
+        } else {
+
+            mPaint.setColor(Color.parseColor(DEFAULT_FILL_COLOR));
+        }
+
         canvas.drawRect(mRect, mPaint);
 
-        // border
-//        mPaint.setStyle(Paint.Style.STROKE);
-//        mPaint.setColor(Color.BLACK);
-//        canvas.drawRect(mRect, mPaint);
     }
 
 
@@ -68,16 +88,47 @@ public class FillPercentCustomView extends View {
     //=================================================
 
 
-    private void init() {
+    private void init(AttributeSet attrs) {
 
         mPaint = new Paint();
 
         mHandler = new Handler();
 
-        mTop = 100;
-        mRight = 100;
+        //
+        if (attrs == null) {
+            return;
+        }
 
+        TypedArray typedArray = null;
+
+        try {
+
+            typedArray = getContext().obtainStyledAttributes(attrs, R.styleable.FillPercent);
+
+            mPercentToFill = typedArray.getInt(R.styleable.FillPercent_fillPercentValue, DEFAULT_PERCENT_TO_FILL);
+
+            mFillColor = typedArray.getString(R.styleable.FillPercent_fillColor);
+
+        } finally {
+
+            if (typedArray != null) {
+                typedArray.recycle();
+            }
+        }
+
+        //
         animateIn();
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+
+        mTop = getMeasuredHeight();
+        mRight = getMeasuredWidth();
+
+        mMaxHeight = Math.round((1 - (mPercentToFill / 100f)) * getMeasuredHeight());
+
+        super.onMeasure(widthMeasureSpec, heightMeasureSpec);
     }
 
     private void animateIn() {
@@ -88,14 +139,14 @@ public class FillPercentCustomView extends View {
 
                 invalidate();
 
-                mTop -= 1;
+                mTop -= mOnDrawIntervalPX;
 
-                if(mTop >= 50){
+                if (mTop >= mMaxHeight) {
 
                     animateIn();
                 }
             }
-        }, 100);
+        }, ON_DRAW_DELAY_IN_MILLIS);
 
 
     }
